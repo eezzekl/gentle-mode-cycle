@@ -30,7 +30,8 @@ default. `super-yolo` is left out of the rotation; if a session is already in
 
 Every successful change shows a short notice (`Permissions: <MODE>`). A press
 during a change in flight is ignored, so two quick presses never compute the next
-mode from a stale read.
+mode from a stale read. If gentle-shell does not settle within 5 seconds, the press
+gives up with a warning (the mode may not have changed) and the next press starts fresh.
 
 ## Install
 

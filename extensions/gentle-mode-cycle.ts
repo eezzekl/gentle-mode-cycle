@@ -9,7 +9,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 import { cycleMode, type CycleOutcome } from "../lib/mode-cycle.ts";
-import { changedNotice, fallbackNotice, unavailableNotice, unchangedNotice, unknownModeNotice } from "../lib/notices.ts";
+import { changedNotice, fallbackNotice, timeoutNotice, unavailableNotice, unchangedNotice, unknownModeNotice } from "../lib/notices.ts";
 
 /** The default key. Configurable from a later task; ctrl+m is Enter in terminals. */
 export const DEFAULT_KEY = "alt+m";
@@ -91,6 +91,9 @@ function announce(ctx: ExtensionContext, outcome: CycleOutcome): void {
 			return;
 		case "unavailable":
 			ctx.ui.notify(unavailableNotice(), "warning");
+			return;
+		case "timeout":
+			ctx.ui.notify(timeoutNotice(), "warning");
 			return;
 	}
 }

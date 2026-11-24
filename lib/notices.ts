@@ -25,3 +25,8 @@ export function unavailableNotice(): string {
 export function fallbackNotice(): string {
 	return "gentle-shell did not answer: opening /gentle:yolo instead.";
 }
+
+/** Written when gentle-shell did not settle within the rotation budget. */
+export function timeoutNotice(): string {
+	return "gentle-shell did not answer in time: the permission mode may not have changed.";
+}

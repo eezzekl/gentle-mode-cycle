@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import createExtension from "../extensions/gentle-mode-cycle.ts";
 import { discoverHostUi } from "../lib/host-ui.ts";
+import { cycleMode } from "../lib/mode-cycle.ts";
 
 const HOST_UI_CHANNEL = "gentle:yolo:host-ui";
 const DEFAULT_KEY = "alt+m";
@@ -537,4 +538,125 @@ test("never opens the fallback when gentle-shell answers", async () => {
 	await pressKey(pi, ctx);
 
 	assert.deepEqual(pi.sent, []);
+});
+
+const TIMEOUT_NOTICE = "gentle-shell did not answer in time: the permission mode may not have changed.";
+
+async function pressAndExpire(t: { mock: { timers: { tick: (ms: number) => void } } }, press: Promise<unknown>) {
+	// Let the press reach its awaits, then expire the rotation budget.
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	t.mock.timers.tick(5000);
+	await press;
+}
+
+for (const hang of ["readMode", "setMode"] as const) {
+	test(`${hang} that never settles warns, disposes once, and releases the lock`, async (t) => {
+		t.mock.timers.enable({ apis: ["setTimeout"] });
+		const pi = createFakePi();
+		const { ctx, notices } = createCtx();
+		let hung = true;
+		const never = new Promise<unknown>(() => {});
+		const { calls } = attachGentleShell(pi, {
+			mode: "normal",
+			setMode: hang === "setMode" ? () => (hung ? never : true) : undefined,
+		});
+		if (hang === "readMode") {
+			// Wrap the responder so the first adapter's readMode hangs.
+			const original = pi.events.emit.bind(pi.events);
+			pi.events.emit = (channel: string, data: unknown) => {
+				if (channel === HOST_UI_CHANNEL && hung) {
+					const request = data as { respond: (adapter: unknown) => void };
+					const respond = request.respond;
+					request.respond = (adapter) => {
+						(adapter as Adapter).readMode = () => {
+							calls.push({ method: "readMode" });
+							return never;
+						};
+						respond(adapter);
+					};
+				}
+				original(channel, data);
+			};
+		}
+		createExtension(pi as never);
+
+		await pressAndExpire(t, pressKey(pi, ctx));
+
+		assert.deepEqual(notices, [{ message: TIMEOUT_NOTICE, type: "warning" }]);
+		assert.equal(calls.filter((call) => call.method === "dispose").length, 1);
+
+		// A later press starts a fresh rotation: the lock was released.
+		hung = false;
+		await pressKey(pi, ctx);
+		assert.deepEqual(notices.slice(1), [{ message: "Permissions: AUTO", type: "info" }]);
+		assert.equal(calls.filter((call) => call.method === "dispose").length, 2);
+	});
+}
+
+test("/mode-cycle warns on timeout too, and a late setMode result is ignored", async (t) => {
+	t.mock.timers.enable({ apis: ["setTimeout"] });
+	const pi = createFakePi();
+	const { ctx, notices } = createCtx();
+	const late = deferred();
+	const { calls } = attachGentleShell(pi, { mode: "normal", setMode: () => late.promise });
+	createExtension(pi as never);
+
+	await pressAndExpire(t, runCommand(pi, ctx));
+	late.resolve(true);
+	await new Promise<void>((resolve) => setImmediate(resolve));
+
+	assert.deepEqual(notices, [{ message: TIMEOUT_NOTICE, type: "warning" }]);
+	assert.equal(calls.filter((call) => call.method === "dispose").length, 1);
+});
+test("never calls setMode after the rotation budget expired", async (t) => {
+	t.mock.timers.enable({ apis: ["setTimeout"] });
+	const pi = createFakePi();
+	const { ctx, notices } = createCtx();
+	const late = deferred();
+	const calls: string[] = [];
+	pi.events.on(HOST_UI_CHANNEL, (data) => {
+		const request = data as { context?: unknown; respond?: (adapter: unknown) => void };
+		if (typeof request?.respond !== "function" || !request.context) return;
+		request.respond({
+			readMode: () => late.promise,
+			setMode: (mode: string) => {
+				calls.push(mode);
+				return true;
+			},
+			dispose: () => {
+				calls.push("dispose");
+			},
+		});
+	});
+	createExtension(pi as never);
+
+	await pressAndExpire(t, pressKey(pi, ctx));
+	late.resolve("normal");
+	await new Promise<void>((resolve) => setImmediate(resolve));
+
+	assert.deepEqual(notices, [{ message: TIMEOUT_NOTICE, type: "warning" }]);
+	assert.deepEqual(calls, ["dispose"]);
+});
+
+test("releases an adapter that answers only after the rotation budget expired", async () => {
+	let disposed = 0;
+	const bus = {
+		emit: (_channel: string, data: unknown) => {
+			setTimeout(() => {
+				(data as { respond: (value: unknown) => void }).respond({
+					readMode: () => "normal",
+					setMode: () => true,
+					dispose: () => {
+						disposed += 1;
+					},
+				});
+			}, 20);
+		},
+	};
+
+	const outcome = await cycleMode({ bus, context: {}, rotationTimeoutMs: 1 });
+	await new Promise<void>((resolve) => setTimeout(resolve, 40));
+
+	assert.deepEqual(outcome, { kind: "timeout" });
+	assert.equal(disposed, 1);
 });
