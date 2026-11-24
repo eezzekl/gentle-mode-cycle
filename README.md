@@ -157,9 +157,20 @@ Self-contained Gentle Shell, which ships its own Pi runtime and agent directory:
 ~/.local/share/gentle-shell/install/bin/pi install <source>
 ```
 
-`<source>` is this repository: a local path or its git URL. The extension needs no
-configuration to start working. A local path installs a reference to that path, so a
-change to the source needs `/reload` or a new session.
+`<source>` is whatever you pass to `pi install`, which accepts:
+
+| Form | Example |
+| --- | --- |
+| A local path | `pi install ~/source/repos/gentle-mode-cycle` |
+| A git URL | `pi install git:github.com/<owner>/gentle-mode-cycle` |
+| An npm package | `pi install npm:@scope/gentle-mode-cycle` |
+
+A local path installs a reference to that path, so a change to the source needs
+`/reload` or a new session. The extension needs no configuration to start working.
+
+With the self-contained Gentle Shell, use the same source with its bundled `pi`
+(`~/.local/share/gentle-shell/install/bin/pi install …`). Gentle Shell has no separate
+install command for extensions: its own rule is to go through Pi's.
 
 ## Requirements and compatibility
 
