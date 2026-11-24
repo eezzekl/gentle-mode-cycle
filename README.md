@@ -53,10 +53,15 @@ because the self-contained install launches Pi with a clean environment.
   clears what was captured, Enter confirms and saves it (then run `/reload`), Escape
   cancels without saving. A combination that cannot work, such as a bare key, is
   shown with the reason and cannot be confirmed.
-  **Limitation:** the box only sees the keys Pi does not consume. Pi's own shortcuts
-  and this extension's currently registered rotation key act before the box, so bind
-  those with the typed form, `/mode-cycle key <key>`. Without a TUI (RPC or print
-  mode) `/mode-cycle key` alone only reports the typed usage.
+  **Limitations:** while the box is open it receives the keys, so pressing the
+  currently registered rotation key captures it instead of rotating the mode, and a
+  combination Pi already binds is captured too — after saving, `/reload` prints Pi's
+  shortcut-conflict warning and this extension wins, so check `/hotkeys` when in
+  doubt. Keys your terminal or operating system consumes (for example `super`
+  combinations on Windows) never reach it. On a terminal without the kitty keyboard
+  protocol some `alt`+letter combinations arrive as another key (`alt+n` arrives as
+  `alt+down`); the box shows what Pi sees and refuses to bind it. Without a TUI (RPC
+  or print mode) `/mode-cycle key` alone only reports the typed usage.
 - A key is one or more modifiers (`ctrl`, `alt`, `shift`, `super`) plus one base key.
   `ctrl+m` (terminals send Enter), `ctrl+i` (Tab), `ctrl+j` (line feed), a bare key
   and anything malformed are rejected.
