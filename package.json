@@ -1,0 +1,44 @@
+{
+	"name": "gentle-mode-cycle",
+	"version": "0.1.0",
+	"description": "Rotate the gentle-shell session permission mode with one key (or /mode-cycle).",
+	"license": "MIT",
+	"type": "module",
+	"keywords": [
+		"pi-package",
+		"pi",
+		"pi-coding-agent",
+		"gentle-shell",
+		"permissions"
+	],
+	"pi": {
+		"extensions": [
+			"./extensions"
+		]
+	},
+	"files": [
+		"extensions/",
+		"lib/",
+		"README.md"
+	],
+	"scripts": {
+		"test": "node --test tests/*.test.ts",
+		"typecheck": "tsc --noEmit"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": ">=1.2.0"
+	},
+	"peerDependenciesMeta": {
+		"@earendil-works/pi-coding-agent": {
+			"optional": true
+		}
+	},
+	"engines": {
+		"node": "^22.19.0 || >=23.6.0"
+	},
+	"devDependencies": {
+		"@earendil-works/pi-coding-agent": ">=1.2.0",
+		"@types/node": "^26.6.6",
+		"typescript": "^7.0.2"
+	}
+}
