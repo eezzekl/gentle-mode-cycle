@@ -72,6 +72,52 @@ test("a legacy alt+letter the parser keeps is still confirmable", () => {
 	assert.deepEqual(results, ["alt+m"]);
 });
 
+test("reports a Pi built-in binding that already owns the combination, and still saves it", () => {
+	const bindings = { getEffectiveConfig: () => ({ "app.models.reorderDown": "shift+alt+n" }) };
+	const { component, results, text } = open(bindings);
+	component.handleInput("\x1b[110;4u"); // shift+alt+n, as Pi writes it in another modifier order
+	assert.match(text(), /app\.models\.reorderDown/);
+	assert.match(text(), /Pi's built-in/);
+	component.handleInput("\r");
+	assert.deepEqual(results, ["shift+alt+n"]);
+});
+
+test("refuses a combination bound to a reserved Pi binding, because the key would never fire", () => {
+	const bindings = { getEffectiveConfig: () => ({ "app.model.cycleForward": "alt+n" }) };
+	const { component, results, text } = open(bindings);
+	component.handleInput(ALT_N);
+	assert.match(text(), /app\.model\.cycleForward/);
+	assert.match(text(), /reserved by Pi/);
+	component.handleInput("\r");
+	assert.deepEqual(results, []);
+});
+
+test("a reserved binding wins a key it shares with an ordinary one", () => {
+	const bindings = { getEffectiveConfig: () => ({ "app.models.reorderDown": "alt+n", "app.interrupt": "alt+n" }) };
+	const { component, text } = open(bindings);
+	component.handleInput(ALT_N);
+	assert.match(text(), /app\.interrupt/);
+	assert.match(text(), /reserved by Pi/);
+});
+
+test("a free combination shows no conflict, and a throwing binding table degrades quietly", () => {
+	const free = open({ getEffectiveConfig: () => ({ "app.models.reorderDown": "ctrl+x" }) });
+	free.component.handleInput(ALT_N);
+	assert.doesNotMatch(free.text(), /In use:/);
+	free.component.handleInput("\r");
+	assert.deepEqual(free.results, ["alt+n"]);
+
+	const broken = open({
+		getEffectiveConfig: () => {
+			throw new Error("boom");
+		},
+	});
+	broken.component.handleInput(ALT_N);
+	assert.doesNotMatch(broken.text(), /In use:/);
+	broken.component.handleInput("\r");
+	assert.deepEqual(broken.results, ["alt+n"]);
+});
+
 test("Backspace clears a legacy ambiguity", () => {
 	const { component, results, text } = open();
 	component.handleInput("\x1bn");

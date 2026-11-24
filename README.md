@@ -99,6 +99,11 @@ because the self-contained install launches Pi with a clean environment.
   protocol some `alt`+letter combinations arrive as another key (`alt+n` arrives as
   `alt+down`); the box shows what Pi sees and refuses to bind it. Without a TUI (RPC
   or print mode) `/mode-cycle key` alone only reports the typed usage.
+- **Conflicts:** the box also reports when the captured combination already belongs to
+  Pi. A built-in binding (`alt+down` is `app.models.reorderDown`, for example) can
+  still be saved — this extension wins — but Pi then prints its own conflict warning on
+  `/reload`. A combination Pi reserves for itself is refused instead, because Pi skips
+  the registration and the key would never fire.
 - A key is one or more modifiers (`ctrl`, `alt`, `shift`, `super`) plus one base key.
   `ctrl+m` (terminals send Enter), `ctrl+i` (Tab), `ctrl+j` (line feed), a bare key
   and anything malformed are rejected.

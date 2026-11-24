@@ -12,6 +12,8 @@ export interface KeyTools {
 /** The part of Pi's keybindings manager the box reads. */
 export interface CaptureKeybindings {
 	matches?(data: string, keybinding: string): boolean;
+	/** The resolved binding table Pi hands to the component: id → key or keys. */
+	getEffectiveConfig?(): Record<string, string | string[] | undefined> | undefined;
 }
 
 export interface KeyCaptureComponent {
@@ -25,6 +27,67 @@ export const CAPTURE_HINT = "Backspace clears · Enter confirms · Escape cancel
 export const CAPTURE_EMPTY = "(waiting for a key)";
 
 const MODIFIER_ORDER = ["ctrl", "shift", "alt", "super"];
+
+// Pi's reserved ids, copied from the private RESERVED_KEYBINDINGS_FOR_EXTENSION_CONFLICTS
+// in @earendil-works/pi-coding-agent dist/core/extensions/runner.js (Pi 1.6.0, 2026-11-24).
+// Pi skips an extension shortcut bound to one of these; a saved key there never fires.
+const RESERVED_KEYBINDINGS: readonly string[] = [
+	"app.interrupt",
+	"app.clear",
+	"app.exit",
+	"app.suspend",
+	"app.thinking.cycle",
+	"app.model.cycleForward",
+	"app.model.cycleBackward",
+	"app.model.select",
+	"app.tools.expand",
+	"app.thinking.toggle",
+	"app.editor.external",
+	"app.message.copy",
+	"app.message.followUp",
+	"tui.input.submit",
+	"tui.select.confirm",
+	"tui.select.cancel",
+	"tui.input.copy",
+	"tui.editor.deleteToLineEnd",
+];
+
+/** Order-insensitive form, so a key written as shift+ctrl+p matches ctrl+shift+p. */
+function canonicalKeyId(key: string): string {
+	const parts = key.trim().toLowerCase().split("+");
+	const base = parts.pop() ?? "";
+	const modifiers = [...new Set(parts)].sort();
+	return [...modifiers, base].join("+");
+}
+
+/**
+ * Which Pi binding, if any, already owns this key. Pi lets a reserved action win a key
+ * shared with an ordinary one, so a reserved match is preferred.
+ */
+export function conflictFor(
+	keybindings: CaptureKeybindings | undefined,
+	key: string,
+): { id: string; reserved: boolean } | undefined {
+	let config: Record<string, string | string[] | undefined> | undefined;
+	try {
+		config = keybindings?.getEffectiveConfig?.();
+	} catch {
+		return undefined;
+	}
+	if (!config || typeof config !== "object") return undefined;
+	const wanted = canonicalKeyId(key);
+	let found: { id: string; reserved: boolean } | undefined;
+	for (const [id, keys] of Object.entries(config)) {
+		if (keys === undefined) continue;
+		for (const one of Array.isArray(keys) ? keys : [keys]) {
+			if (typeof one !== "string" || canonicalKeyId(one) !== wanted) continue;
+			const reserved = RESERVED_KEYBINDINGS.includes(id);
+			if (!found || (reserved && !found.reserved)) found = { id, reserved };
+		}
+	}
+	return found;
+}
+
 
 /**
  * Pi's key id form: lowercase, modifiers in the canonical order ctrl, shift, alt, super
@@ -83,6 +146,7 @@ export function createKeyCapture(
 	let captured: string | undefined;
 	let reason: string | undefined;
 	let legacy: string | undefined;
+	let conflict: { id: string; reserved: boolean } | undefined;
 
 	const is = (data: string, binding: string, fallbackKey: string): boolean => {
 		try {
@@ -104,6 +168,7 @@ export function createKeyCapture(
 		if (key === undefined) return; // not a key the terminal can name: keep what was captured
 		captured = key;
 		legacy = legacyAmbiguity(data, key);
+		conflict = conflictFor(keybindings, key);
 		const check = validateKey(key);
 		reason = check.ok ? undefined : check.reason;
 	};
@@ -116,6 +181,13 @@ export function createKeyCapture(
 			if (legacy !== undefined) {
 				lines.push(`  Your terminal reported this as ${legacy} (a legacy sequence): it cannot name the combination you pressed. Try another combination.`);
 			}
+			if (conflict !== undefined) {
+				lines.push(
+					conflict.reserved
+						? `  In use: ${conflict.id} (reserved by Pi): this extension cannot register it, so the key would never fire.`
+						: `  In use: ${conflict.id} (Pi's built-in): saving it makes this extension win; Pi reports the conflict on /reload.`,
+				);
+			}
 			lines.push("", CAPTURE_HINT);
 			return lines.map((line) => [...line].slice(0, Math.max(0, width)).join(""));
 		},
@@ -125,7 +197,7 @@ export function createKeyCapture(
 				return;
 			}
 			if (is(data, "tui.select.confirm", "enter")) {
-				if (captured !== undefined && reason === undefined && legacy === undefined) done(captured);
+				if (captured !== undefined && reason === undefined && legacy === undefined && !conflict?.reserved) done(captured);
 				return;
 			}
 			let backspace = false;
@@ -138,6 +210,7 @@ export function createKeyCapture(
 				captured = undefined;
 				reason = undefined;
 				legacy = undefined;
+				conflict = undefined;
 				return;
 			}
 			capture(data);
