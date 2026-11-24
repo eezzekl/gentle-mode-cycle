@@ -9,6 +9,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 import { configPath, DEFAULT_KEY, resolveAgentDir, resolveConfig, validateKey, writeConfig } from "../lib/config.ts";
+import { createKeyCapture, loadKeyTools as defaultLoadKeyTools, type KeyTools } from "../lib/key-capture.ts";
 import { cycleMode, type CycleOutcome } from "../lib/mode-cycle.ts";
 import {
 	changedNotice,
@@ -32,6 +33,8 @@ export const COMMAND_NAME = "mode-cycle";
 export interface LoadOptions {
 	/** Pi's agent directory; injected by tests so they never touch the real one. */
 	agentDir: string;
+	/** Loads pi-tui's key helpers when the capture box opens; injected by tests. */
+	loadKeyTools?: () => Promise<KeyTools | undefined>;
 }
 
 /** Pi's entry point: resolve where the config lives, then wire the extension. */
@@ -39,7 +42,7 @@ export default function gentleModeCycle(pi: ExtensionAPI): void {
 	createGentleModeCycle(pi, { agentDir: resolveAgentDir() });
 }
 
-export function createGentleModeCycle(pi: ExtensionAPI, { agentDir }: LoadOptions): void {
+export function createGentleModeCycle(pi: ExtensionAPI, { agentDir, loadKeyTools = defaultLoadKeyTools }: LoadOptions): void {
 	// The key is fixed at load: Pi registers shortcuts only then.
 	const loaded = resolveConfig(agentDir);
 	const file = configPath(agentDir);
@@ -85,6 +88,26 @@ export function createGentleModeCycle(pi: ExtensionAPI, { agentDir }: LoadOption
 		else if (loaded.malformed) say(ctx, malformedConfigNotice(file), "warning");
 	});
 
+	/**
+	 * `/mode-cycle key` alone: a box that captures the pressed combination. Resolves to
+	 * the captured key, or undefined when cancelled; null when no capture is possible
+	 * here (no TUI, pi-tui missing or failing), so the typed usage is shown instead.
+	 */
+	const captureKey = async (ctx: ExtensionContext): Promise<string | undefined | null> => {
+		if (ctx.mode !== "tui" || !ctx.hasUI) return null;
+		try {
+			const tools = await loadKeyTools();
+			if (!tools) return null;
+			// undefined (RPC mode, or Escape) is a cancel.
+			const value = await ctx.ui.custom<string | undefined>((_tui, _theme, keybindings, done) =>
+				createKeyCapture(tools, keybindings as never, done),
+			);
+			return typeof value === "string" ? value : undefined;
+		} catch {
+			return null;
+		}
+	};
+
 	const saveKey = (ctx: ExtensionContext, args: string[]): void => {
 		const [value] = args;
 		if (value === undefined || args.length > 1) {
@@ -106,13 +129,21 @@ export function createGentleModeCycle(pi: ExtensionAPI, { agentDir }: LoadOption
 	};
 
 	pi.registerCommand(COMMAND_NAME, {
-		description: "Rotate the session permission mode (no arguments); `key <key|off>` changes the key, `status` shows the settings",
+		description: "Rotate the session permission mode (no arguments); `key` captures a new key (or `key <key|off>` sets it), `status` shows the settings",
 		handler: async (args, ctx) => {
 			const words = args.trim().split(/\s+/).filter((word) => word !== "");
 			const [subcommand, ...rest] = words;
 			if (subcommand === undefined) {
 				await rotate(ctx);
 			} else if (subcommand === "key") {
+				if (rest.length === 0) {
+					const captured = await captureKey(ctx);
+					if (captured === undefined) return;
+					if (captured !== null) {
+						saveKey(ctx, [captured]);
+						return;
+					}
+				}
 				saveKey(ctx, rest);
 			} else if (subcommand === "status" && rest.length === 0) {
 				const now = resolveConfig(agentDir);

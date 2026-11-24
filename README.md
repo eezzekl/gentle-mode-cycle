@@ -47,6 +47,16 @@ because the self-contained install launches Pi with a clean environment.
 - `/mode-cycle key <key>` validates and saves it, e.g. `/mode-cycle key ctrl+shift+k`.
   **Run `/reload` afterwards**: Pi registers shortcuts only when extensions load.
   Use Pi's `/hotkeys` to check the new key does not conflict with another binding.
+- `/mode-cycle key` with no argument opens a capture box (TUI only): press the
+  combination you want and the box shows it as it will be saved, so there is no
+  notation to get wrong (`alt-n`, or shift+n meaning a capital letter). Backspace
+  clears what was captured, Enter confirms and saves it (then run `/reload`), Escape
+  cancels without saving. A combination that cannot work, such as a bare key, is
+  shown with the reason and cannot be confirmed.
+  **Limitation:** the box only sees the keys Pi does not consume. Pi's own shortcuts
+  and this extension's currently registered rotation key act before the box, so bind
+  those with the typed form, `/mode-cycle key <key>`. Without a TUI (RPC or print
+  mode) `/mode-cycle key` alone only reports the typed usage.
 - A key is one or more modifiers (`ctrl`, `alt`, `shift`, `super`) plus one base key.
   `ctrl+m` (terminals send Enter), `ctrl+i` (Tab), `ctrl+j` (line feed), a bare key
   and anything malformed are rejected.

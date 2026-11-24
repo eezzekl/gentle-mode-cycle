@@ -70,5 +70,5 @@ export function statusNotice(details: { shortcut: string | null; pending?: strin
 
 /** Written for an unknown /mode-cycle subcommand; nothing is rotated. */
 export function usageNotice(): string {
-	return "Usage: /mode-cycle (rotate) | /mode-cycle key <key|off> | /mode-cycle status";
+	return "Usage: /mode-cycle (rotate) | /mode-cycle key [<key|off>] (no key: press the combination) | /mode-cycle status";
 }
