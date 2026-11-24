@@ -212,4 +212,8 @@ The tests drive the extension through its public surface (the registered shortcu
 the registered command, the notices, the bell writer and the calls made on a fake
 gentle-shell adapter), so they need no terminal session and no real gentle-shell.
 
+## License
+
+MIT — see [LICENSE](LICENSE).
+
 [![Built with Gentle-AI](https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png)](https://github.com/Gentleman-Programming/gentle-ai)
