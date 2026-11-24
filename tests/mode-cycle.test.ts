@@ -1530,3 +1530,30 @@ test("the bell rings even when there is no UI to show the notice, as long as the
 	assert.deepEqual(notices, []);
 	assert.deepEqual(writes, [BELL]);
 });
+
+test("a config getter that throws keeps super-yolo out of the rotation", async () => {
+	const calls: string[] = [];
+	const bus = {
+		emit: (_channel: string, data: unknown) => {
+			(data as { respond: (adapter: unknown) => void }).respond({
+				readMode: () => "yolo",
+				setMode: (mode: string) => {
+					calls.push(mode);
+					return true;
+				},
+				dispose: () => {},
+			});
+		},
+	};
+
+	const outcome = await cycleMode({
+		bus,
+		context: {},
+		includeSuperYolo: () => {
+			throw new Error("config-boom");
+		},
+	});
+
+	assert.deepEqual(calls, ["normal"]);
+	assert.deepEqual(outcome, { kind: "changed", from: "yolo", to: "normal" });
+});
