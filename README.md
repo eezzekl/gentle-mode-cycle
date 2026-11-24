@@ -36,6 +36,28 @@ press, so it applies to the **next press** with no `/reload`. Anything other tha
 `on` or `off` is rejected and changes nothing. A missing or malformed file, or a
 value that is not a boolean, means off.
 
+## Sound when the cycle returns to `normal`
+
+`normal` shows no label in the status bar, so a press that lands on it would be
+silent. For that one case the extension rings the **terminal bell**: it writes a
+single byte (`\x07`) to the terminal. It does not play a file or use gentle-shell's
+notification sounds.
+
+- It rings only when a press **changed** the mode and the new mode is `normal`, in
+  the interactive TUI. It never rings for `auto`, `yolo` or `super-yolo`, for a
+  refused change, an unknown mode, a timeout, gentle-shell being unavailable or the
+  `/gentle:yolo` fallback, nor in print, JSON or RPC modes.
+- Whether you hear anything is the **terminal's** decision. Depending on its bell
+  setting the bell may be an audible beep, a visual flash, or nothing. In Windows
+  Terminal, for example, `bellStyle` can silence it or turn it into a flash.
+- `bellOnNormal` (default `true`) switches it off; `notify` (default `true`) hides
+  the success notice only. Both are read on every press: a hand edit applies to the
+  next press, with no `/reload`.
+
+```json
+{ "notify": true, "bellOnNormal": true }
+```
+
 ## Usage
 
 | Action | What it does |
@@ -85,6 +107,11 @@ because the self-contained install launches Pi with a clean environment.
   starts. A missing or unreadable file means the defaults.
 - `/mode-cycle status` shows the active key, whether `super-yolo` is included
   (`includeSuperYolo`, default off) and the config file path.
+- `notify` (default `true`): `false` hides the success notice (`Permissions: <MODE>`).
+  Warnings (refused change, unknown mode, timeout, gentle-shell unavailable, key or
+  config errors) are never hidden.
+- `bellOnNormal` (default `true`): `false` turns the bell off.
+- A value that is not a boolean in `notify` or `bellOnNormal` means the default (on).
 - Other fields in the file are preserved when the extension saves it.
 
 ## Install

@@ -118,14 +118,22 @@ export interface ResolvedConfig {
 	invalid?: { value: unknown; reason: string };
 	malformed: boolean;
 	includeSuperYolo: boolean;
+	/** Show the success notice on a press that changed the mode. Default true; warnings are never hidden. */
+	notify: boolean;
+	/** Ring the terminal bell when a press lands on normal. Default true. */
+	bellOnNormal: boolean;
 }
 
 /** The effective settings: defaults wherever the file is missing, malformed or invalid. */
 export function resolveConfig(agentDir: string): ResolvedConfig {
 	const { values, malformed } = readConfig(agentDir);
 	const includeSuperYolo = values.includeSuperYolo === true;
-	if (!("key" in values)) return { shortcut: DEFAULT_KEY, malformed, includeSuperYolo };
+	// Anything but a real boolean keeps the default (on).
+	const notify = typeof values.notify === "boolean" ? values.notify : true;
+	const bellOnNormal = typeof values.bellOnNormal === "boolean" ? values.bellOnNormal : true;
+	const flags = { malformed, includeSuperYolo, notify, bellOnNormal };
+	if (!("key" in values)) return { shortcut: DEFAULT_KEY, ...flags };
 	const check = validateKey(values.key);
-	if (check.ok) return { shortcut: check.key, malformed, includeSuperYolo };
-	return { shortcut: DEFAULT_KEY, invalid: { value: values.key, reason: check.reason }, malformed, includeSuperYolo };
+	if (check.ok) return { shortcut: check.key, ...flags };
+	return { shortcut: DEFAULT_KEY, invalid: { value: values.key, reason: check.reason }, ...flags };
 }

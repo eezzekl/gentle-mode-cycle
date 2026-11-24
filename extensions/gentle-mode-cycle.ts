@@ -37,14 +37,21 @@ export interface LoadOptions {
 	agentDir: string;
 	/** Loads pi-tui's key helpers when the capture box opens; injected by tests. */
 	loadKeyTools?: () => Promise<KeyTools | undefined>;
+	/** Writes the terminal bell; defaults to process.stdout.write. Injected by tests so none touches a real terminal. */
+	writeBell?: (data: string) => void;
 }
+
+const BELL = "\x07";
+const defaultWriteBell = (data: string): void => {
+	process.stdout.write(data);
+};
 
 /** Pi's entry point: resolve where the config lives, then wire the extension. */
 export default function gentleModeCycle(pi: ExtensionAPI): void {
 	createGentleModeCycle(pi, { agentDir: resolveAgentDir() });
 }
 
-export function createGentleModeCycle(pi: ExtensionAPI, { agentDir, loadKeyTools = defaultLoadKeyTools }: LoadOptions): void {
+export function createGentleModeCycle(pi: ExtensionAPI, { agentDir, loadKeyTools = defaultLoadKeyTools, writeBell = defaultWriteBell }: LoadOptions): void {
 	// The key is fixed at load: Pi registers shortcuts only then.
 	const loaded = resolveConfig(agentDir);
 	const file = configPath(agentDir);
@@ -67,7 +74,10 @@ export function createGentleModeCycle(pi: ExtensionAPI, { agentDir, loadKeyTools
 				ctx.ui.notify(fallbackNotice(), "warning");
 				return;
 			}
-			announce(ctx, outcome);
+			// Read after the press: a hand edit of the file applies to the next press.
+			const { notify, bellOnNormal } = resolveConfig(agentDir);
+			announce(ctx, outcome, notify);
+			ringIfNormal(ctx, outcome, bellOnNormal, writeBell);
 		} finally {
 			inFlight = false;
 		}
@@ -210,11 +220,31 @@ function openFallback(pi: ExtensionAPI): boolean {
 	}
 }
 
-function announce(ctx: ExtensionContext, outcome: CycleOutcome): void {
+/**
+ * One bell byte, only when the cycle just landed on normal (the bar shows no label
+ * for it) and only in the TUI: in print/JSON/RPC a raw byte would pollute the stream.
+ * A failing writer must never break the press.
+ */
+function ringIfNormal(
+	ctx: ExtensionContext,
+	outcome: CycleOutcome,
+	enabled: boolean,
+	writeBell: (data: string) => void,
+): void {
+	if (!enabled || outcome.kind !== "changed" || outcome.to !== "normal" || ctx.mode !== "tui") return;
+	try {
+		writeBell(BELL);
+	} catch {
+		// Sound is a courtesy; the notice and the lock are already settled.
+	}
+}
+
+function announce(ctx: ExtensionContext, outcome: CycleOutcome, notify: boolean): void {
 	if (!ctx.hasUI) return;
 	switch (outcome.kind) {
 		case "changed":
-			ctx.ui.notify(changedNotice(outcome.to), "info");
+			// Only the acknowledgement can be switched off; every warning below is a report.
+			if (notify) ctx.ui.notify(changedNotice(outcome.to), "info");
 			return;
 		case "unchanged":
 			ctx.ui.notify(unchangedNotice(outcome.from), "warning");
