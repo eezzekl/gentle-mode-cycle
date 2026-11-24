@@ -148,31 +148,30 @@ fields this version does not know are preserved.
 Pi with the gentle-shell package:
 
 ```bash
-pi install <source>
+pi install npm:@eezzekl/gentle-mode-cycle
 ```
 
 Self-contained Gentle Shell, which ships its own Pi runtime and agent directory:
 
 ```bash
-~/.local/share/gentle-shell/install/bin/pi install <source>
+~/.local/share/gentle-shell/install/bin/pi install npm:@eezzekl/gentle-mode-cycle
 ```
 
-`<source>` is whatever you pass to `pi install`, which accepts:
+Three forms work the same way, and the source in the commands above is whichever you
+pick:
 
-| Form | Example |
-| --- | --- |
-| A local path | `pi install ~/source/repos/gentle-mode-cycle` |
-| A git URL | `pi install git:github.com/eezzekl/gentle-mode-cycle` |
-| An npm package | `pi install npm:@eezzekl/gentle-mode-cycle` |
+| Form           | Example                                          | When to use it                                                                                |
+| -------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| An npm package | `pi install npm:@eezzekl/gentle-mode-cycle`      | A released version; pin it with `@0.1.0`                                                      |
+| A git URL      | `pi install git:github.com/eezzekl/gentle-mode-cycle` | The latest `main`, no registry involved                                                  |
+| A local path   | `pi install ~/source/repos/gentle-mode-cycle`    | Development: a reference to that path, so a source change needs `/reload` or a new session     |
 
-The git URL is the published repository, https://github.com/eezzekl/gentle-mode-cycle.
+The git URL is the repository, https://github.com/eezzekl/gentle-mode-cycle; released
+versions are tagged and listed under `/releases`. The extension needs no configuration
+to start working.
 
-A local path installs a reference to that path, so a change to the source needs
-`/reload` or a new session. The extension needs no configuration to start working.
-
-With the self-contained Gentle Shell, use the same source with its bundled `pi`
-(`~/.local/share/gentle-shell/install/bin/pi install …`). Gentle Shell has no separate
-install command for extensions: its own rule is to go through Pi's.
+With the self-contained Gentle Shell, use the same source with its bundled `pi`. Gentle
+Shell has no separate install command for extensions: its own rule is to go through Pi's.
 
 ## Requirements and compatibility
 
