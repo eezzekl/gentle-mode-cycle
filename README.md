@@ -55,7 +55,7 @@ configuration to start working.
 | --- | --- |
 | Pi | `>=1.2.0` |
 | Node | `^22.19.0 \|\| >=23.6.0` |
-| gentle-shell | required; the mode contract was read from gentle-shell (gentle-pi) 5.0.0, commit `0d181e872` (2026-11-23) |
+| gentle-shell | required; the mode contract was read from gentle-shell (gentle-pi) 5.0.0, commit `0d181e872` (2026-11-23), and verified live against the packaged self-contained install (gentle-pi 4.3.0 on Pi 1.3.0) |
 
 Extension shortcuts are registered through Pi, so `/hotkeys` lists the effective
 key and any conflict with a built-in binding.
