@@ -20,6 +20,8 @@ import {
 	malformedConfigNotice,
 	saveFailedNotice,
 	statusNotice,
+	superYoloRejectedNotice,
+	superYoloSavedNotice,
 	timeoutNotice,
 	unavailableNotice,
 	unchangedNotice,
@@ -59,7 +61,8 @@ export function createGentleModeCycle(pi: ExtensionAPI, { agentDir, loadKeyTools
 		if (inFlight) return;
 		inFlight = true;
 		try {
-			const outcome = await cycleMode({ bus, context: ctx, includeSuperYolo: false });
+			// A getter, not a value: a `/mode-cycle super-yolo off` during a press must win.
+			const outcome = await cycleMode({ bus, context: ctx, includeSuperYolo: () => resolveConfig(agentDir).includeSuperYolo });
 			if (outcome.kind === "unavailable" && ctx.hasUI && openFallback(pi)) {
 				ctx.ui.notify(fallbackNotice(), "warning");
 				return;
@@ -128,6 +131,21 @@ export function createGentleModeCycle(pi: ExtensionAPI, { agentDir, loadKeyTools
 		say(ctx, keySavedNotice(check.key), "info");
 	};
 
+	const saveSuperYolo = (ctx: ExtensionContext, args: string[]): void => {
+		const [value] = args;
+		if (args.length !== 1 || (value !== "on" && value !== "off")) {
+			say(ctx, superYoloRejectedNotice(), "warning");
+			return;
+		}
+		try {
+			writeConfig(agentDir, { includeSuperYolo: value === "on" });
+		} catch (error) {
+			say(ctx, saveFailedNotice(file, error), "warning");
+			return;
+		}
+		say(ctx, superYoloSavedNotice(value === "on"), "info");
+	};
+
 	pi.registerCommand(COMMAND_NAME, {
 		description: "Rotate the session permission mode (no arguments); `key` captures a new key (or `key <key|off>` sets it), `status` shows the settings",
 		handler: async (args, ctx) => {
@@ -145,6 +163,8 @@ export function createGentleModeCycle(pi: ExtensionAPI, { agentDir, loadKeyTools
 					}
 				}
 				saveKey(ctx, rest);
+			} else if (subcommand === "super-yolo") {
+				saveSuperYolo(ctx, rest);
 			} else if (subcommand === "status" && rest.length === 0) {
 				const now = resolveConfig(agentDir);
 				say(

@@ -70,5 +70,17 @@ export function statusNotice(details: { shortcut: string | null; pending?: strin
 
 /** Written for an unknown /mode-cycle subcommand; nothing is rotated. */
 export function usageNotice(): string {
-	return "Usage: /mode-cycle (rotate) | /mode-cycle key [<key|off>] (no key: press the combination) | /mode-cycle status";
+	return "Usage: /mode-cycle (rotate) | /mode-cycle key [<key|off>] (no key: press the combination) | /mode-cycle status | /mode-cycle super-yolo on|off";
+}
+
+/** Written after /mode-cycle super-yolo on|off saved the choice. */
+export function superYoloSavedNotice(included: boolean): string {
+	return included
+		? "super-yolo: included in the rotation (applies to the next press)."
+		: "super-yolo: not included in the rotation.";
+}
+
+/** Written when /mode-cycle super-yolo got anything but one "on" or "off". */
+export function superYoloRejectedNotice(): string {
+	return 'super-yolo: expected "on" or "off".';
 }

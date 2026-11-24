@@ -13,7 +13,8 @@ export interface CycleOptions {
 	bus: EventBus;
 	/** The Pi context gentle-shell reads and sets the mode through; without it there is no adapter. */
 	context: unknown;
-	includeSuperYolo?: boolean;
+	/** True to include super-yolo in the rotation. A function is read again after the current mode is read, so a toggle during a press is honoured. */
+	includeSuperYolo?: boolean | (() => boolean);
 	/** Discovery wait; defaults to gentle-shell's own 100 ms. */
 	timeoutMs?: number;
 	/** Budget for discovery plus readMode plus setMode; tests override it. */
@@ -24,6 +25,16 @@ export interface CycleOptions {
 export const ROTATION_TIMEOUT_MS = 5000;
 
 export async function cycleMode(options: CycleOptions): Promise<CycleOutcome> {
+	// Read as late as possible: a config that cannot be read keeps super-yolo out.
+	const includeSuperYolo = (): boolean => {
+		const value = options.includeSuperYolo;
+		if (typeof value !== "function") return value === true;
+		try {
+			return value() === true;
+		} catch {
+			return false;
+		}
+	};
 	let adapter: ModeAdapter | undefined;
 	let from: Mode | undefined;
 	let expired = false;
@@ -49,7 +60,7 @@ export async function cycleMode(options: CycleOptions): Promise<CycleOutcome> {
 			if (expired) return { kind: "timeout" };
 			if (!isMode(current)) return { kind: "unknown-mode", mode: current };
 			from = current;
-			const to = nextMode(current, options.includeSuperYolo ?? false);
+			const to = nextMode(current, includeSuperYolo());
 			const changed = await found.setMode(to);
 			return changed ? { kind: "changed", from: current, to } : { kind: "unchanged", from: current };
 		} finally {

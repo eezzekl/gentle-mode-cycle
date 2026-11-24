@@ -21,6 +21,21 @@ The rotation is counted from the mode the session is in now, not from the saved
 default. `super-yolo` is left out of the rotation; if a session is already in
 `super-yolo`, a press takes it to `normal` (never to a more permissive mode).
 
+### Including super-yolo (opt-in)
+
+`super-yolo` (no permission prompts) is **off by default, on purpose**: pressing the
+key a few times must never land you there by accident. To opt in, run
+
+```
+/mode-cycle super-yolo on     # normal → auto → yolo → super-yolo → normal
+/mode-cycle super-yolo off    # back to the default rotation
+```
+
+It is saved as `includeSuperYolo` in `gentle-mode-cycle.json` and read on every
+press, so it applies to the **next press** with no `/reload`. Anything other than
+`on` or `off` is rejected and changes nothing. A missing or malformed file, or a
+value that is not a boolean, means off.
+
 ## Usage
 
 | Action | What it does |
