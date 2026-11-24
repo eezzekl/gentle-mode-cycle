@@ -20,3 +20,8 @@ export function unknownModeNotice(mode: unknown): string {
 export function unavailableNotice(): string {
 	return "gentle-shell is not available: cannot rotate the permission mode.";
 }
+
+/** Written when gentle-shell did not answer but /gentle:yolo exists, and that command is opened instead. */
+export function fallbackNotice(): string {
+	return "gentle-shell did not answer: opening /gentle:yolo instead.";
+}

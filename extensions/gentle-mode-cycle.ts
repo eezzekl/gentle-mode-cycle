@@ -9,7 +9,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 import { cycleMode, type CycleOutcome } from "../lib/mode-cycle.ts";
-import { changedNotice, unavailableNotice, unchangedNotice, unknownModeNotice } from "../lib/notices.ts";
+import { changedNotice, fallbackNotice, unavailableNotice, unchangedNotice, unknownModeNotice } from "../lib/notices.ts";
 
 /** The default key. Configurable from a later task; ctrl+m is Enter in terminals. */
 export const DEFAULT_KEY = "alt+m";
@@ -29,7 +29,12 @@ export default function gentleModeCycle(pi: ExtensionAPI): void {
 		if (inFlight) return;
 		inFlight = true;
 		try {
-			announce(ctx, await cycleMode({ bus, context: ctx, includeSuperYolo: false }));
+			const outcome = await cycleMode({ bus, context: ctx, includeSuperYolo: false });
+			if (outcome.kind === "unavailable" && ctx.hasUI && openFallback(pi)) {
+				ctx.ui.notify(fallbackNotice(), "warning");
+				return;
+			}
+			announce(ctx, outcome);
 		} finally {
 			inFlight = false;
 		}
@@ -48,6 +53,28 @@ export default function gentleModeCycle(pi: ExtensionAPI): void {
 			await rotate(ctx);
 		},
 	});
+}
+
+const FALLBACK_COMMAND = "gentle:yolo";
+
+/**
+ * gentle-shell did not answer the channel. If its /gentle:yolo command is listed,
+ * gentle-shell is present with a changed internal contract: open that command.
+ * Any failure here means no fallback; it must never break the press.
+ */
+function openFallback(pi: ExtensionAPI): boolean {
+	try {
+		// Pi lists command names without the leading slash; accept either form,
+		// because a name mismatch would silently disable the fallback.
+		const listed = (pi.getCommands?.() ?? []).some(
+			(command) => command.name.replace(/^\//, "") === FALLBACK_COMMAND,
+		);
+		if (!listed) return false;
+		pi.sendUserMessage(`/${FALLBACK_COMMAND}`, { expandPromptTemplates: true });
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 function announce(ctx: ExtensionContext, outcome: CycleOutcome): void {

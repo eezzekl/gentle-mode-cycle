@@ -33,7 +33,15 @@ type CommandOptions = {
 
 type FakePi = ReturnType<typeof createFakePi>;
 
-function createFakePi() {
+type FakePiOptions = {
+	/** Names `getCommands` lists; undefined means the host has no `getCommands`. */
+	commandNames?: string[];
+	getCommandsThrows?: boolean;
+	sendUserMessageThrows?: boolean;
+};
+
+function createFakePi(options: FakePiOptions = {}) {
+	const sent: Array<{ text: string; options: unknown }> = [];
 	const shortcuts = new Map<string, ShortcutOptions>();
 	const commands = new Map<string, CommandOptions>();
 	const channelHandlers = new Map<string, Set<(data: unknown) => void>>();
@@ -50,7 +58,20 @@ function createFakePi() {
 			for (const handler of [...(channelHandlers.get(channel) ?? [])]) handler(data);
 		},
 	};
+	const host: Record<string, unknown> = {};
+	if (options.commandNames !== undefined || options.getCommandsThrows) {
+		host.getCommands = () => {
+			if (options.getCommandsThrows) throw new Error("commands-boom");
+			return (options.commandNames ?? []).map((name) => ({ name, source: "extension" }));
+		};
+	}
 	return {
+		...host,
+		sent,
+		sendUserMessage(text: string, sendOptions?: unknown) {
+			if (options.sendUserMessageThrows) throw new Error("send-boom");
+			sent.push({ text, options: sendOptions });
+		},
 		shortcuts,
 		commands,
 		events,
@@ -425,4 +446,95 @@ test("never writes the mode label itself", async () => {
 	await pressKey(pi, ctx);
 
 	assert.deepEqual(statuses, []);
+});
+
+const NOT_AVAILABLE = "gentle-shell is not available: cannot rotate the permission mode.";
+const FALLBACK = "gentle-shell did not answer: opening /gentle:yolo instead.";
+
+test("opens /gentle:yolo when gentle-shell does not answer but the command exists", async () => {
+	const pi = createFakePi({ commandNames: ["mode-cycle", "gentle:yolo"] });
+	const { ctx, notices } = createCtx();
+	createExtension(pi as never);
+
+	await pressKey(pi, ctx);
+
+	assert.deepEqual(pi.sent, [{ text: "/gentle:yolo", options: { expandPromptTemplates: true } }]);
+	assert.deepEqual(notices, [{ message: FALLBACK, type: "warning" }]);
+});
+
+test("recognises the fallback command whether it is listed with or without a leading slash", async () => {
+	const pi = createFakePi({ commandNames: ["/gentle:yolo"] });
+	const { ctx, notices } = createCtx();
+	createExtension(pi as never);
+
+	await pressKey(pi, ctx);
+
+	assert.deepEqual(pi.sent, [{ text: "/gentle:yolo", options: { expandPromptTemplates: true } }]);
+	assert.deepEqual(notices, [{ message: FALLBACK, type: "warning" }]);
+});
+
+test("the /mode-cycle command opens the same fallback", async () => {
+	const pi = createFakePi({ commandNames: ["gentle:yolo"] });
+	const { ctx, notices } = createCtx();
+	createExtension(pi as never);
+
+	await runCommand(pi, ctx);
+
+	assert.equal(pi.sent.length, 1);
+	assert.deepEqual(notices, [{ message: FALLBACK, type: "warning" }]);
+});
+
+test("opens /gentle:yolo when the adapter lacks the methods it needs", async () => {
+	const pi = createFakePi({ commandNames: ["gentle:yolo"] });
+	const { ctx, notices } = createCtx();
+	attachGentleShell(pi, { mode: "normal", withoutSetMode: true });
+	createExtension(pi as never);
+
+	await pressKey(pi, ctx);
+
+	assert.deepEqual(pi.sent, [{ text: "/gentle:yolo", options: { expandPromptTemplates: true } }]);
+	assert.deepEqual(notices, [{ message: FALLBACK, type: "warning" }]);
+});
+
+test("only warns that gentle-shell is required when /gentle:yolo is not listed", async () => {
+	const pi = createFakePi({ commandNames: ["mode-cycle", "other"] });
+	const { ctx, notices } = createCtx();
+	createExtension(pi as never);
+
+	await pressKey(pi, ctx);
+
+	assert.deepEqual(pi.sent, []);
+	assert.deepEqual(notices, [{ message: NOT_AVAILABLE, type: "warning" }]);
+});
+
+test("a getCommands that throws means no fallback, and the press does not break", async () => {
+	const pi = createFakePi({ getCommandsThrows: true });
+	const { ctx, notices } = createCtx();
+	createExtension(pi as never);
+
+	await pressKey(pi, ctx);
+
+	assert.deepEqual(pi.sent, []);
+	assert.deepEqual(notices, [{ message: NOT_AVAILABLE, type: "warning" }]);
+});
+
+test("falls back to the plain warning when dispatching /gentle:yolo throws", async () => {
+	const pi = createFakePi({ commandNames: ["gentle:yolo"], sendUserMessageThrows: true });
+	const { ctx, notices } = createCtx();
+	createExtension(pi as never);
+
+	await pressKey(pi, ctx);
+
+	assert.deepEqual(notices, [{ message: NOT_AVAILABLE, type: "warning" }]);
+});
+
+test("never opens the fallback when gentle-shell answers", async () => {
+	const pi = createFakePi({ commandNames: ["gentle:yolo"] });
+	const { ctx } = createCtx();
+	attachGentleShell(pi, { mode: "normal" });
+	createExtension(pi as never);
+
+	await pressKey(pi, ctx);
+
+	assert.deepEqual(pi.sent, []);
 });

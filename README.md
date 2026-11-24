@@ -66,6 +66,17 @@ hands back (`readMode`, `setMode`, `dispose`). If gentle-shell renames that chan
 its payload, its adapter methods or its modes, rotation stops and this extension has
 to be updated.
 
+## Without gentle-shell, or when its contract changed
+
+gentle-shell is required. If it does not answer, the press changes nothing and shows
+`gentle-shell is not available: cannot rotate the permission mode.`
+
+If gentle-shell is installed but renamed the internal contract below, its
+`/gentle:yolo` command still exists. In that case the press shows
+`gentle-shell did not answer: opening /gentle:yolo instead.` and opens that command,
+so the mode can still be changed by hand. Rotation stays stopped until this
+extension is updated.
+
 ## Development
 
 ```bash
