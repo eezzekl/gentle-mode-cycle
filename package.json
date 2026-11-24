@@ -6,6 +6,15 @@
 	},
 	"description": "Rotate the gentle-shell session permission mode with one key (or /mode-cycle).",
 	"license": "MIT",
+	"author": "Ezequiel Canul",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/eezzekl/gentle-mode-cycle.git"
+	},
+	"homepage": "https://github.com/eezzekl/gentle-mode-cycle#readme",
+	"bugs": {
+		"url": "https://github.com/eezzekl/gentle-mode-cycle/issues"
+	},
 	"type": "module",
 	"keywords": [
 		"pi-package",
