@@ -33,6 +33,30 @@ during a change in flight is ignored, so two quick presses never compute the nex
 mode from a stale read. If gentle-shell does not settle within 5 seconds, the press
 gives up with a warning (the mode may not have changed) and the next press starts fresh.
 
+## Changing the key
+
+The key lives in the extension's own config file, `gentle-mode-cycle.json`, in Pi's
+agent directory (`~/.pi/agent/` with Pi, `~/.local/share/gentle-shell/install/agent/`
+with the self-contained Gentle Shell). It is a file, not an environment variable,
+because the self-contained install launches Pi with a clean environment.
+
+```json
+{ "key": "alt+m" }
+```
+
+- `/mode-cycle key <key>` validates and saves it, e.g. `/mode-cycle key ctrl+shift+k`.
+  **Run `/reload` afterwards**: Pi registers shortcuts only when extensions load.
+  Use Pi's `/hotkeys` to check the new key does not conflict with another binding.
+- A key is one or more modifiers (`ctrl`, `alt`, `shift`, `super`) plus one base key.
+  `ctrl+m` (terminals send Enter), `ctrl+i` (Tab), `ctrl+j` (line feed), a bare key
+  and anything malformed are rejected.
+- `"off"` (or `""`) registers no key; `/mode-cycle` keeps working.
+- An invalid key in the file falls back to `alt+m` and warns once when the session
+  starts. A missing or unreadable file means the defaults.
+- `/mode-cycle status` shows the active key, whether `super-yolo` is included
+  (`includeSuperYolo`, default off) and the config file path.
+- Other fields in the file are preserved when the extension saves it.
+
 ## Install
 
 Pi with the gentle-shell package:

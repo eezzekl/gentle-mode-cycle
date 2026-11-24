@@ -8,14 +8,41 @@
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
+import { configPath, DEFAULT_KEY, resolveAgentDir, resolveConfig, validateKey, writeConfig } from "../lib/config.ts";
 import { cycleMode, type CycleOutcome } from "../lib/mode-cycle.ts";
-import { changedNotice, fallbackNotice, timeoutNotice, unavailableNotice, unchangedNotice, unknownModeNotice } from "../lib/notices.ts";
+import {
+	changedNotice,
+	fallbackNotice,
+	invalidKeyNotice,
+	keyRejectedNotice,
+	keySavedNotice,
+	malformedConfigNotice,
+	saveFailedNotice,
+	statusNotice,
+	timeoutNotice,
+	unavailableNotice,
+	unchangedNotice,
+	unknownModeNotice,
+	usageNotice,
+} from "../lib/notices.ts";
 
-/** The default key. Configurable from a later task; ctrl+m is Enter in terminals. */
-export const DEFAULT_KEY = "alt+m";
+export { DEFAULT_KEY };
 export const COMMAND_NAME = "mode-cycle";
 
+export interface LoadOptions {
+	/** Pi's agent directory; injected by tests so they never touch the real one. */
+	agentDir: string;
+}
+
+/** Pi's entry point: resolve where the config lives, then wire the extension. */
 export default function gentleModeCycle(pi: ExtensionAPI): void {
+	createGentleModeCycle(pi, { agentDir: resolveAgentDir() });
+}
+
+export function createGentleModeCycle(pi: ExtensionAPI, { agentDir }: LoadOptions): void {
+	// The key is fixed at load: Pi registers shortcuts only then.
+	const loaded = resolveConfig(agentDir);
+	const file = configPath(agentDir);
 	// Two presses must never compute the next mode from a stale read.
 	let inFlight = false;
 
@@ -40,19 +67,74 @@ export default function gentleModeCycle(pi: ExtensionAPI): void {
 		}
 	};
 
-	pi.registerShortcut(DEFAULT_KEY as Parameters<ExtensionAPI["registerShortcut"]>[0], {
-		description: "Rotate the session permission mode (normal → auto → yolo)",
-		handler: async (ctx) => {
-			await rotate(ctx);
-		},
+	if (loaded.shortcut !== null) {
+		pi.registerShortcut(loaded.shortcut as Parameters<ExtensionAPI["registerShortcut"]>[0], {
+			description: "Rotate the session permission mode (normal → auto → yolo)",
+			handler: async (ctx) => {
+				await rotate(ctx);
+			},
+		});
+	}
+
+	// No context exists at load time, so a bad file is reported when the session starts.
+	let warned = false;
+	pi.on("session_start", (_event, ctx) => {
+		if (warned) return;
+		warned = true;
+		if (loaded.invalid) say(ctx, invalidKeyNotice(loaded.invalid.value, loaded.invalid.reason, file), "warning");
+		else if (loaded.malformed) say(ctx, malformedConfigNotice(file), "warning");
 	});
 
+	const saveKey = (ctx: ExtensionContext, args: string[]): void => {
+		const [value] = args;
+		if (value === undefined || args.length > 1) {
+			say(ctx, keyRejectedNotice(args.join(" "), "give exactly one key, or off"), "warning");
+			return;
+		}
+		const check = validateKey(value);
+		if (!check.ok) {
+			say(ctx, keyRejectedNotice(value, check.reason), "warning");
+			return;
+		}
+		try {
+			writeConfig(agentDir, { key: check.key ?? "off" });
+		} catch (error) {
+			say(ctx, saveFailedNotice(file, error), "warning");
+			return;
+		}
+		say(ctx, keySavedNotice(check.key), "info");
+	};
+
 	pi.registerCommand(COMMAND_NAME, {
-		description: "Rotate the session permission mode; with no arguments it does what the key does",
-		handler: async (_args, ctx) => {
-			await rotate(ctx);
+		description: "Rotate the session permission mode (no arguments); `key <key|off>` changes the key, `status` shows the settings",
+		handler: async (args, ctx) => {
+			const words = args.trim().split(/\s+/).filter((word) => word !== "");
+			const [subcommand, ...rest] = words;
+			if (subcommand === undefined) {
+				await rotate(ctx);
+			} else if (subcommand === "key") {
+				saveKey(ctx, rest);
+			} else if (subcommand === "status" && rest.length === 0) {
+				const now = resolveConfig(agentDir);
+				say(
+					ctx,
+					statusNotice({
+						shortcut: loaded.shortcut,
+						...(now.shortcut === loaded.shortcut ? {} : { pending: now.shortcut }),
+						includeSuperYolo: now.includeSuperYolo,
+						configFile: file,
+					}),
+					"info",
+				);
+			} else {
+				say(ctx, usageNotice(), "warning");
+			}
 		},
 	});
+}
+
+function say(ctx: ExtensionContext, message: string, type: "info" | "warning"): void {
+	if (ctx.hasUI) ctx.ui.notify(message, type);
 }
 
 const FALLBACK_COMMAND = "gentle:yolo";
