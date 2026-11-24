@@ -163,10 +163,9 @@ Self-contained Gentle Shell, which ships its own Pi runtime and agent directory:
 | --- | --- |
 | A local path | `pi install ~/source/repos/gentle-mode-cycle` |
 | A git URL | `pi install git:github.com/eezzekl/gentle-mode-cycle` |
-| An npm package | `pi install npm:@scope/gentle-mode-cycle` |
+| An npm package | `pi install npm:@eezzekl/gentle-mode-cycle` |
 
 The git URL is the published repository, https://github.com/eezzekl/gentle-mode-cycle.
-The npm form needs the package published first, and it is not on npm yet.
 
 A local path installs a reference to that path, so a change to the source needs
 `/reload` or a new session. The extension needs no configuration to start working.

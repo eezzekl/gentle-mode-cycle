@@ -1,6 +1,9 @@
 {
-	"name": "gentle-mode-cycle",
+	"name": "@eezzekl/gentle-mode-cycle",
 	"version": "0.1.0",
+	"publishConfig": {
+		"access": "public"
+	},
 	"description": "Rotate the gentle-shell session permission mode with one key (or /mode-cycle).",
 	"license": "MIT",
 	"type": "module",
