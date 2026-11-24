@@ -13,15 +13,15 @@ gentle-shell there is nothing to rotate (see [Without gentle-shell](#without-gen
 
 ## Usage
 
-| Command | What it does |
-| --- | --- |
-| `alt+m` | Move to the next session permission mode. The key is configurable. |
-| `/mode-cycle` | Same as the key. |
-| `/mode-cycle key` | Capture a new key with the keyboard (TUI only). |
-| `/mode-cycle key <key>` | Set the key explicitly, e.g. `ctrl+shift+k`. |
-| `/mode-cycle key off` | Register no key; the command keeps working. |
-| `/mode-cycle status` | Show the active key, whether `super-yolo` is included, and the config file. |
-| `/mode-cycle super-yolo on\|off` | Include `super-yolo` in the rotation, or leave it out. |
+| Command                          | What it does                                                                |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| `alt+m`                          | Move to the next session permission mode. The key is configurable.          |
+| `/mode-cycle`                    | Same as the key.                                                            |
+| `/mode-cycle key`                | Capture a new key with the keyboard (TUI only).                             |
+| `/mode-cycle key <key>`          | Set the key explicitly, e.g. `ctrl+shift+k`.                                |
+| `/mode-cycle key off`            | Register no key; the command keeps working.                                 |
+| `/mode-cycle status`             | Show the active key, whether `super-yolo` is included, and the config file. |
+| `/mode-cycle super-yolo on\|off` | Include `super-yolo` in the rotation, or leave it out.                      |
 
 Every successful change shows a short notice (`Permissions: <MODE>`). A press during
 a change in flight is ignored, so two quick presses never compute the next mode from
@@ -122,15 +122,20 @@ turns it into a flash.
 
 `gentle-mode-cycle.json` in Pi's agent directory. Every field is optional:
 
-| Field | Default | What it does |
-| --- | --- | --- |
-| `key` | `"alt+m"` | The rotation shortcut. `"off"` or `""` registers none. |
-| `includeSuperYolo` | `false` | Include `super-yolo` in the rotation. |
-| `notify` | `true` | Show the success notice (`Permissions: <MODE>`). Warnings are never hidden. |
-| `bellOnNormal` | `true` | Ring the bell when a press lands on `normal`. |
+| Field              | Default   | What it does                                                                |
+| ------------------ | --------- | --------------------------------------------------------------------------- |
+| `key`              | `"alt+m"` | The rotation shortcut. `"off"` or `""` registers none.                      |
+| `includeSuperYolo` | `false`   | Include `super-yolo` in the rotation.                                       |
+| `notify`           | `true`    | Show the success notice (`Permissions: <MODE>`). Warnings are never hidden. |
+| `bellOnNormal`     | `true`    | Ring the bell when a press lands on `normal`.                               |
 
 ```json
-{ "key": "alt+m", "includeSuperYolo": false, "notify": true, "bellOnNormal": true }
+{
+  "key": "alt+m",
+  "includeSuperYolo": false,
+  "notify": true,
+  "bellOnNormal": true
+}
 ```
 
 `includeSuperYolo`, `notify` and `bellOnNormal` are read on every press, so a hand
@@ -158,10 +163,10 @@ change to the source needs `/reload` or a new session.
 
 ## Requirements and compatibility
 
-| | |
-| --- | --- |
-| Pi | `>=1.2.0` |
-| Node | `^22.19.0 \|\| >=23.6.0` |
+|              |                                                                                                                                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pi           | `>=1.2.0`                                                                                                                                                                                              |
+| Node         | `^22.19.0 \|\| >=23.6.0`                                                                                                                                                                               |
 | gentle-shell | required; the mode contract was read from gentle-shell (gentle-pi) 5.0.0, commit `0d181e872` (2026-11-23), and verified live against the packaged self-contained install (gentle-pi 4.3.0 on Pi 1.3.0) |
 
 The extension talks to gentle-shell through an internal, unversioned contract: the
@@ -192,3 +197,5 @@ pnpm typecheck   # tsc --noEmit
 The tests drive the extension through its public surface (the registered shortcut,
 the registered command, the notices, the bell writer and the calls made on a fake
 gentle-shell adapter), so they need no terminal session and no real gentle-shell.
+
+[![Built with Gentle-AI](https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png)](https://github.com/Gentleman-Programming/gentle-ai)
